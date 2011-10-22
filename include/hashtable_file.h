@@ -209,6 +209,7 @@ inline uint32_t hashtable_file::insert(const void *key, size_t key_len, const vo
 
 inline uint32_t hashtable_file::insert_unique(const void *key, size_t key_len, const void *val, size_t val_len)
 {
+	check_resize();
     uint32_t hc = hashcode(key, key_len);
     uint32_t bucket = hc & mask;
     struct entry_t *entries = (struct entry_t *)buckets.data();
