@@ -22,7 +22,7 @@ struct hashtable_file
     inline int create(const char *filename);
     inline int create(int fd);
     inline int create_mem();
-    inline int load(const char *filename);
+    inline int load(const char *filename, int sharing_mode);
     
     inline int finalize();
     inline int close();
@@ -96,9 +96,9 @@ inline int hashtable_file::create_mem()
     return init_create();
 }
 
-inline int hashtable_file::load(const char *filename)
+inline int hashtable_file::load(const char *filename, int sharing_mode)
 {
-    if (0 > data.load(filename))
+    if (0 > data.load(filename, sharing_mode))
         return -1;
     uint32_t *header = (uint32_t *)data.data();
     ofs_buckets = *header++;

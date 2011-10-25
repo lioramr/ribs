@@ -263,14 +263,14 @@ public:
 class var_index_container
 {
 public:
-    int init(const char *filename)
+    int init(const char *filename, int sharing_mode)
     {
         size_t l = strlen(filename) + 20;
         char keys_filename[l];
         char index_filename[l];
         sprintf(keys_filename, "%s.keys", filename);
         sprintf(index_filename, "%s.index", filename);
-        if (0 > ht_keys.load(keys_filename) || 0 > mf_index.init(index_filename))
+        if (0 > ht_keys.load(keys_filename, sharing_mode) || 0 > mf_index.init(index_filename))
             return -1;
         return 0;
     }
