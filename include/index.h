@@ -270,7 +270,7 @@ public:
         char index_filename[l];
         sprintf(keys_filename, "%s.keys", filename);
         sprintf(index_filename, "%s.index", filename);
-        if (0 > ht_keys.load(keys_filename, sharing_mode) || 0 > mf_index.init(index_filename))
+        if (0 > ht_keys.load_readonly(keys_filename, sharing_mode) || 0 > mf_index.init(index_filename))
             return -1;
         return 0;
     }

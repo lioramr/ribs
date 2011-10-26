@@ -121,14 +121,15 @@ struct vmfile : vmbuf_common<vmstorage_file>
         return 0;
     }
 
-    int load(const char *filename, int sharing_mode)
+    int load(const char *filename, int sharing_mode, int vmstorage_flags)
     {
         if (0 > storage.load(filename, sharing_mode))
             return -1;
         
         read_loc = 0;
         write_loc = storage.capacity;
-        storage.close(); // can close the file after mmap
+        if (vmstorage_flags & VMSTORAGE_RO)
+        	storage.close(); // can close the file after mmap
         return 0;
     }
 

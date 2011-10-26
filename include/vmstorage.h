@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include "tempfd.h"
 
+#define VMSTORAGE_RO 01
+#define VMSTORAGE_RW 02
 
 struct vmpage
 {
@@ -105,7 +107,7 @@ struct vmstorage_file
         initial_size = vmpage::align(initial_size);
         if (0 > ftruncate(fd, initial_size))
         {
-            perror("ftruncate");
+            perror("ftruncate, create");
             return -1;
         }
         buf = (char *)mmap(NULL, initial_size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
@@ -227,7 +229,7 @@ struct vmstorage_file
         new_capacity = vmpage::align(new_capacity);
         if (0 > ftruncate(fd, new_capacity))
         {
-            perror("ftruncate");
+            perror("ftruncate, resize_to");
             return -1;
         }
         char *newaddr = (char *)mremap(buf, capacity, new_capacity, MREMAP_MAYMOVE);
@@ -246,7 +248,7 @@ struct vmstorage_file
     {
         if (0 > ftruncate(fd, len))
         {
-            perror("ftruncate");
+            perror("ftruncate, trucate");
             return -1;
         }
         return 0;
