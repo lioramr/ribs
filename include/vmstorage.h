@@ -148,7 +148,7 @@ struct vmstorage_file
         return 0;
     }
 
-    int load(const char *filename, int sharing_mode)
+    int load(const char *filename, int mmap_flags)
     {
         if (0 > this->free())
             return -1;
@@ -171,7 +171,7 @@ struct vmstorage_file
 
         len = vmpage::align(len);
         
-        buf = (char *)mmap(NULL, len, PROT_WRITE | PROT_READ, sharing_mode, fd, 0);
+        buf = (char *)mmap(NULL, len, PROT_WRITE | PROT_READ, mmap_flags, fd, 0);
         if (MAP_FAILED == buf)
         {
             perror("mmap, vmstorage_file::load");

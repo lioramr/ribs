@@ -22,9 +22,9 @@ struct hashtable_file
     inline int create(const char *filename);
     inline int create(int fd);
     inline int create_mem();
-    inline int load(const char *filename, int sharing_mode);
-    inline int load_readonly(const char *filename, int sharing_mode);
-    inline int load_readwrite(const char *filename, int sharing_mode);
+    inline int load(const char *filename, int mmap_flags);
+    inline int load_readonly(const char *filename, int mmap_flags);
+    inline int load_readwrite(const char *filename, int mmap_flags);
     
     inline int finalize();
     inline int close();
@@ -98,14 +98,14 @@ inline int hashtable_file::create_mem()
     return init_create();
 }
 
-inline int hashtable_file::load(const char *filename, int sharing_mode)
+inline int hashtable_file::load(const char *filename, int mmap_flags)
 {
-	return load_readonly(filename, sharing_mode);
+	return load_readonly(filename, mmap_flags);
 }
 
-inline int hashtable_file::load_readonly(const char *filename, int sharing_mode)
+inline int hashtable_file::load_readonly(const char *filename, int mmap_flags)
 {
-    if (0 > data.load(filename, sharing_mode, VMSTORAGE_RO))
+    if (0 > data.load(filename, mmap_flags, VMSTORAGE_RO))
         return -1;
     uint32_t *header = (uint32_t *)data.data();
     ofs_buckets = *header++;
@@ -120,9 +120,9 @@ inline int hashtable_file::load_readonly(const char *filename, int sharing_mode)
  * this method copies the  buckets into memory and prepares the hashtable
  * for new inserts.
  */
-inline int hashtable_file::load_readwrite(const char *filename, int sharing_mode)
+inline int hashtable_file::load_readwrite(const char *filename, int mmap_flags)
 {
-    if (0 > data.load(filename, sharing_mode, VMSTORAGE_RW))
+    if (0 > data.load(filename, mmap_flags, VMSTORAGE_RW))
         return -1;
     uint32_t *header = (uint32_t *)data.data();
     ofs_buckets = *header++;

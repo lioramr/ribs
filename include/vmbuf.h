@@ -121,9 +121,9 @@ struct vmfile : vmbuf_common<vmstorage_file>
         return 0;
     }
 
-    int load(const char *filename, int sharing_mode, int vmstorage_flags)
+    int load(const char *filename, int mmap_flags, int vmstorage_flags)
     {
-        if (0 > storage.load(filename, sharing_mode))
+        if (0 > storage.load(filename, mmap_flags))
             return -1;
         
         read_loc = 0;
