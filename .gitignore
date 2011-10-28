@@ -1,12 +1,6 @@
-GeoLiteCity.dat
 bin
 lib
 obj
 dist
 *~
 TAGS
-perf.data*
-data/
-data.*/
-adserver/src/libantlr3c-3.2
-misc
