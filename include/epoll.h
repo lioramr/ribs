@@ -42,6 +42,8 @@ struct epoll
 
     static __thread int epollfd;
     static callback_t per_thread_callback;
+    static __thread void *label_run;
+    static __thread void *label_done;
 
     static __thread struct basic_epoll_event *server_timeout_chain;
     static __thread struct basic_epoll_event *client_timeout_chain;
@@ -53,9 +55,11 @@ struct epoll
     static void *thread_main(void *);
     static void *run(void *);
 
-    static void start(int num_threads = 0);
+    static int start(int num_threads = 0);
+    static void stop() { label_run = label_done; }
 
     static void set_per_thread_callback(callback_t cb);
+    static int mask_signals();
 
     static inline int arm_timeout_timer(int fd, struct timeval *tv);
 

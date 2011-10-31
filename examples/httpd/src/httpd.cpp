@@ -198,36 +198,7 @@ int main(int argc, char *argv[])
     if (0 > MyServer::acceptor.init(port, LISTEN_BACKLOG, &events_array))
         abort();
     MyServer::acceptor.callback.set(&MyServer::handle_request);
-    init_signals();
     epoll::start();
+    daemon::finish();
     return 0;
 }
-
-void sighandler(int s)
-{
-    switch(s)
-    {
-    case SIGINT:
-    case SIGTERM:
-        daemon::finish();
-        break;
-    }
-}
-
-int init_signals()
-{
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGPIPE);
-
-    if (-1 == sigprocmask(SIG_BLOCK, &set, NULL))
-    {
-        perror("sigprocmask");
-        return -1;
-    }
-
-    signal(SIGTERM, sighandler);
-    signal(SIGINT, sighandler);
-    return 0;
-}
-

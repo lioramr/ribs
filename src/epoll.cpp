@@ -20,6 +20,8 @@
 #include "epoll.h"
 #include <pthread.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <sys/signalfd.h>
 
 /* static */
 __thread int epoll::epollfd = -1;
@@ -30,6 +32,13 @@ epoll::callback_t epoll::per_thread_callback = NULL;
 __thread struct basic_epoll_event *epoll::server_timeout_chain;
 /* static */
 __thread struct basic_epoll_event *epoll::client_timeout_chain;
+
+/* static */
+__thread void *epoll::label_run;
+
+/* static */
+__thread void *epoll::label_done;
+
 
 /* static */
 struct timeval epoll::server_timeout = { epoll::DEFAULT_SERVER_TIMEOUT, 0 };
@@ -56,6 +65,35 @@ struct epoll_timeout_handler : basic_epoll_event
         return NULL;
     }
     struct basic_epoll_event *to_chain;
+};
+
+struct epoll_signal_handler : basic_epoll_event
+{
+    static epoll_signal_handler *instance() { static epoll_signal_handler inst; return &inst; }
+    int init()
+    {
+        this->method.set(&epoll_signal_handler::on_signal);
+        sigset_t set;
+        sigemptyset(&set);
+        sigaddset(&set, SIGINT);
+        sigaddset(&set, SIGTERM);
+        this->fd = signalfd(-1, &set, SFD_NONBLOCK);
+        if (0 > this->fd)
+        {
+            LOGGER_PERROR_STR("signalfd");
+            return -1;
+        }
+
+        return 0;
+    }
+    
+    void init_per_thread() { epoll::add_multi(this); }
+
+    struct basic_epoll_event *on_signal()
+    {
+        epoll::stop();
+        return NULL;
+    }
 };
 
 /* static */
@@ -96,6 +134,9 @@ void * epoll::run(void *)
     if (NULL != per_thread_callback)
         if (0 > per_thread_callback())
             return NULL;
+    
+    epoll_signal_handler::instance()->init_per_thread();
+    
     epoll_timeout_handler server_to_handler;
     server_to_handler.init(epoll::server_timeout_chain);
     server_timeout_chain->fd = server_to_handler.fd;
@@ -107,24 +148,39 @@ void * epoll::run(void *)
     client_timeout_chain->last_event_ts = epoll::client_timeout;
     
     struct epoll_event epollev;
-    while (1)
-    {
-        if (0 >= epoll_wait(epollfd, &epollev, 1, -1))
-            continue;
-        struct basic_epoll_event *e = (basic_epoll_event *)epollev.data.ptr;
-        epoll::cancel_timeout(e);
-        while (NULL != (e = e->invoke()));
-    }
+    label_run = &&epoll_loop;
+    label_done = &&epoll_done;
+    
+ epoll_loop:
+    if (0 >= epoll_wait(epollfd, &epollev, 1, -1))
+        goto *label_run;
+    struct basic_epoll_event *e = (basic_epoll_event *)epollev.data.ptr;
+    epoll::cancel_timeout(e);
+    while (NULL != (e = e->invoke()));
+    goto *label_run;
+ epoll_done:
+
     return NULL;
 }
 
 /* static */
-void epoll::start(int num_threads /* = 0 */)
+int epoll::start(int num_threads /* = 0 */)
 {
     if (num_threads <= 0)
     {
         // auto-detect cores
         num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+        if (0 > num_threads)
+        {
+            LOGGER_PERROR_STR("sysconf");
+            return -1;
+        }
+    }
+    epoll_signal_handler::instance()->init();
+    if (0 > mask_signals())
+    {
+        LOGGER_INFO_STR("failed to mask signals, exiting...");
+        return -1;
     }
     LOGGER_INFO_AT("creating %d worker threads", num_threads);
     --num_threads;
@@ -134,6 +190,7 @@ void epoll::start(int num_threads /* = 0 */)
     run(NULL);
     for (int i = 0; i < num_threads; ++i)
         pthread_join(threads[i], NULL);
+    return 0;
 }
 
 /* static */
@@ -142,3 +199,18 @@ void epoll::set_per_thread_callback(callback_t cb)
     per_thread_callback = cb;
 }
 
+/* static */
+int epoll::mask_signals()
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGPIPE);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+    if (-1 == sigprocmask(SIG_BLOCK, &set, NULL))
+    {
+        LOGGER_PERROR_STR("sigprocmask");
+        return -1;
+    }
+    return 0;
+}
