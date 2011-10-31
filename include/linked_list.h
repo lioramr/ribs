@@ -17,7 +17,7 @@
     You should have received a copy of the GNU Lesser General Public License
     along with RIBS.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef _LINKED_LIST___H
+#ifndef _LINKED_LIST__H_
 #define _LINKED_LIST__H_
 
 #include "vmbuf.h"
