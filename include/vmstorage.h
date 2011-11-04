@@ -155,7 +155,7 @@ struct vmstorage_file
             if (0 > unlink(filename) && errno != ENOENT)
                 return perror(filename), -1;
             
-            fd = open(filename, O_CREAT | O_RDWR, 0644);
+            fd = open(filename, O_CREAT | O_RDWR | O_CLOEXEC, 0644);
             if (0 > fd)
                 return perror(filename), -1;
 
@@ -172,7 +172,7 @@ struct vmstorage_file
         if (0 > this->free())
             return -1;
         
-        fd = open(filename, O_RDWR);
+        fd = open(filename, O_RDWR | O_CLOEXEC);
         if (0 > fd)
         {
             perror(filename);

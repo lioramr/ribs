@@ -42,7 +42,7 @@ inline static void init_stdio(int fd)
 
 inline static int create_pidfile(const char *pidfile)
 {
-    int fd = open(pidfile, O_WRONLY | O_CREAT | O_EXCL, 0644);
+    int fd = open(pidfile, O_WRONLY | O_CREAT /*| O_EXCL*/, 0644);
     if (0 > fd)
         LOGGER_PERROR("pidfile: %s", pidfile);
     return fd;

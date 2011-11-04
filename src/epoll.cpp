@@ -77,7 +77,7 @@ struct epoll_signal_handler : basic_epoll_event
         sigemptyset(&set);
         sigaddset(&set, SIGINT);
         sigaddset(&set, SIGTERM);
-        this->fd = signalfd(-1, &set, SFD_NONBLOCK);
+        this->fd = signalfd(-1, &set, SFD_CLOEXEC | SFD_NONBLOCK);
         if (0 > this->fd)
         {
             LOGGER_PERROR_STR("signalfd");
@@ -99,9 +99,6 @@ struct epoll_signal_handler : basic_epoll_event
 /* static */
 int epoll::init(time_t to_server, time_t to_client)
 {
-    epollfd = epoll_create(1); // size is ignored but must be positive
-    if (0 > epollfd)
-        return LOGGER_PERROR_STR("epoll_create"), -1;
     server_timeout = (struct timeval) { to_server, 0 };
     client_timeout = (struct timeval) { to_client / 1000,  (to_client % 1000) * 1000 };
     return 0;
@@ -110,15 +107,11 @@ int epoll::init(time_t to_server, time_t to_client)
 /* static */
 void *epoll::thread_main(void *arg)
 {
-    epollfd = epoll_create(1); // size is ignored but must be positive
+    (void)arg;
+    epollfd = epoll_create1(EPOLL_CLOEXEC);
     if (0 > epollfd)
         return LOGGER_PERROR_STR("epoll_create"), (void *)NULL;
-    return run(arg);
-}
 
-/* static */
-void * epoll::run(void *)
-{
     struct basic_epoll_event server_to_chain;
     timerclear(&server_to_chain.last_event_ts);
     server_timeout_chain = &server_to_chain;
@@ -187,7 +180,7 @@ int epoll::start(int num_threads /* = 0 */)
     pthread_t threads[num_threads];
     for (int i = 0; i < num_threads; ++i)
         pthread_create(threads + i, NULL, epoll::thread_main, NULL);
-    run(NULL);
+    thread_main(NULL);
     for (int i = 0; i < num_threads; ++i)
         pthread_join(threads[i], NULL);
     return 0;

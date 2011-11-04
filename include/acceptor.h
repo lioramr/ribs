@@ -36,13 +36,19 @@
 template<typename T>
 struct acceptor : basic_epoll_event
 {
+    // N.Y. backward compatibility interface, can go away
     int init(int port, int listen_backlog, struct epoll_event_array *events)
     {
-        this->events = events;
-        return _init(port, listen_backlog);
+        return init(-1, port, listen_backlog, events);
     }
     
-    int _init(int port, int listen_backlog);
+    int init(int fd, int port, int listen_backlog, struct epoll_event_array *events)
+    {
+        this->events = events;
+        return _init(fd, port, listen_backlog);
+    }
+    
+    int _init(int fd, int port, int listen_backlog);
            
     struct basic_epoll_event *on_accept();
     
