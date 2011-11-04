@@ -143,6 +143,42 @@ namespace URI
         return (char *)outbuf;
     }
 
+    // encodes in and puts the value in out, up to len chars.
+    // does NOT check for nul termination.
+    inline char* encoden(const char *in, char *out, int len, int *out_len)
+    {
+        static uint8_t bits[] = {
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x9B, 0x00, 0xFC,
+            0x01, 0x00, 0x00, 0x78, 0x01, 0x00, 0x00, 0xF8,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+        };
+        static char hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                                    'A', 'B', 'C', 'D', 'E', 'F' };
+        const uint8_t *inbuf = (const uint8_t *)in;
+        uint8_t *outbuf = (uint8_t *)out;
+        int i;
+        for (i = 0; i < len; ++inbuf, ++i)
+        {
+            register uint8_t c = *inbuf;
+            if (c == ' ')
+            {
+                *outbuf++ = '+';
+            } else if ((bits[c >> 3] & (1 << (c & 7))) > 0)
+            {
+                *outbuf++ = '%';
+                *outbuf++ = hex_chars[c >> 4];
+                *outbuf++ = hex_chars[c & 15];
+            }
+            else {
+                *outbuf++ = c;
+            }
+        }
+        *outbuf = 0;
+        *out_len = outbuf - (uint8_t*)out;
+        return (char *)outbuf;
+    }
+
     inline char* purify_url(const char *in, char *out)
     {
         static char hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
