@@ -33,7 +33,7 @@ struct signal_handler : basic_epoll_event
         sigemptyset(&set);
         sigaddset(&set, sig);
         
-        this->fd = signalfd(-1, &set, SFD_NONBLOCK);
+        this->fd = signalfd(-1, &set, SFD_CLOEXEC | SFD_NONBLOCK);
         if (0 > this->fd)
         {
             perror("signalfd");

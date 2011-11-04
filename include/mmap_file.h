@@ -75,7 +75,7 @@ inline int mmap_file_write::init(const char *filename)
     wloc = 0;
     if (0 > unlink(filename) && errno != ENOENT)
         LOGGER_PERROR_STR(filename);
-    fd = open(filename, O_CREAT | O_WRONLY, 0644);
+    fd = open(filename, O_CREAT | O_WRONLY | O_CLOEXEC, 0644);
     if (0 > fd)
         LOGGER_PERROR_STR(filename);
     return fd;
@@ -105,7 +105,7 @@ inline int mmap_file::init(const char *filename, int prot /* = PROT_READ */, int
 {
     if (NULL != mem)
         this->close();
-    int fd = open(filename, O_RDONLY);
+    int fd = open(filename, O_RDONLY | O_CLOEXEC);
     if (0 > fd)
         return LOGGER_PERROR_STR(filename), -1;
     struct stat st;
