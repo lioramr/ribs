@@ -174,7 +174,7 @@ inline int json::parse(const char *js, void *cb /* = NULL */)
                 return -1;
             }
             last_key.reset();
-            stack.rollback(stack.wlocpos() - sizeof(struct stack_item));
+            stack.wrewind(sizeof(struct stack_item));
             last_string = *(struct stack_item *)stack.wloc();
             (callback_object->*callback_block_end)(this, last_string.begin, last_string.end);
             --level;

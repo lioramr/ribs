@@ -25,18 +25,27 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-struct epoll_event_array : public ptr_array<struct basic_epoll_event>
+template<typename T>
+struct epoll_event_array_template : ptr_array<T>
 {
     template<typename F>
     void init(const F &f)
     {
         struct rlimit rlim;
         ::getrlimit(RLIMIT_NOFILE, &rlim);
-        ptr_array<struct basic_epoll_event>::init((size_t)rlim.rlim_cur, f);
+        ptr_array<T>::init((size_t)rlim.rlim_cur, f);
         int fd = 0;
-        for (struct basic_epoll_event **ev = begin(), **evEnd = end(); ev != evEnd; ++ev, ++fd)
+        for (T **ev = ptr_array<T>::begin(), **evEnd = ptr_array<T>::end(); ev != evEnd; ++ev, ++fd)
             (*ev)->fd = fd;
     }
+};
+
+struct epoll_event_array : epoll_event_array_template<struct basic_epoll_event>
+{
+};
+
+struct epoll_server_event_array : epoll_event_array_template<struct server_epoll_event>
+{
 };
 
 

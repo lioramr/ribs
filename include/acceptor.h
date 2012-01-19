@@ -32,33 +32,25 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
+#include "vmpool.h"
 
-template<typename T>
 struct acceptor : basic_epoll_event
 {
-    // N.Y. backward compatibility interface, can go away
-    int init(int port, int listen_backlog, struct epoll_event_array *events)
-    {
-        return init(-1, port, listen_backlog, events);
-    }
-    
-    int init(int fd, int port, int listen_backlog, struct epoll_event_array *events)
-    {
-        this->events = events;
-        return _init(fd, port, listen_backlog);
-    }
-    
-    int _init(int fd, int port, int listen_backlog);
+    int init(int fd, int port, int listen_backlog, struct epoll_server_event_array *events);
            
     struct basic_epoll_event *on_accept();
     
-    void init_per_thread() { epoll::add_multi(this, EPOLLIN); }
-    
-    struct epoll_event_array *events;
+    //void init_per_thread(vmpool_op<struct server_epoll_event> p);
+    void init_per_thread();
+    void noop() { }
+    basic_epoll_event *callback_error() { abort(); return NULL; }
     
     struct basic_epoll_event_method_0args callback;
-};
+    struct basic_epoll_event_void_method_0args accept_callback;
 
-#include "../src/acceptor.cpp" // inline 
+    struct epoll_server_event_array *events;
+    static __thread struct vmpool_op<struct server_epoll_event> pool;
+};
 
 #endif // _ACCEPTOR__H_

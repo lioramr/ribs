@@ -17,12 +17,27 @@
     You should have received a copy of the GNU Lesser General Public License
     along with RIBS.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef _CLIENT_COMMON__H_
-#define _CLIENT_COMMON__H_
+#ifndef _RUUID__H_
+#define _RUUID__H_
 
 #include <stdint.h>
+#include <vmbuf.h>
 
-int resolve_host_name(const char*host, struct in_addr *addr);
-int parse_ip_and_port(const char *host, struct in_addr *addr, uint16_t *port);
+struct uuid
+{
+    uint8_t bytes[16];
+};
 
-#endif // _CLIENT_COMMON__H_
+struct uuid_str
+{
+    char str[33];
+};
+
+int uuid_init();
+int uuid_init_thread();
+int uuid_generate(struct uuid *bytes);
+void uuid_2_str(struct uuid *uuid, uuid_str *uuid_str);
+void uuid_2_vmbuf(struct uuid *uuid, vmbuf *buf);
+int uuid_parse(struct uuid *uuid, const char *str);
+
+#endif // _RUUID__H_

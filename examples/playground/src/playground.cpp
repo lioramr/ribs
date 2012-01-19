@@ -40,15 +40,23 @@
 #include "mkdir_recursive.h"
 
 #define LISTEN_BACKLOG 32768
-static struct epoll_event_array events_array;
 
 SSTR(URI_TEST1, "/test1");
 struct sockaddr_in remote_server_addr;
 
+static struct epoll_server_event_array events_array;
+
 struct MyServer : http_server
 {
-    static int init()
+    //static __thread vmpool_op<server_epoll_event> pool;
+    static int init_per_thread()
     {
+        /*
+        static __thread vmpool<MyServer> *myserver_pool = NULL;
+        myserver_pool = new vmpool<MyServer>;
+        pool = myserver_pool->get_op<server_epoll_event>();
+        acceptor.init_per_thread(pool);
+        */
         acceptor.init_per_thread();
         return 0;
     }
@@ -66,6 +74,10 @@ struct MyServer : http_server
         if (0 > ffd)
             return response(HTTP_STATUS_404, HTTP_CONTENT_TYPE_TEXT_PLAIN);
 
+        /*
+        http_server *h = (http_server *)pool.get();
+        h->fd = ffd;
+        */
         http_server *h = (http_server *)events_array.get(ffd);
         if (0 > h->sendFile(this))
         {
@@ -127,10 +139,12 @@ struct MyServer : http_server
         return error;
     }
     
-    static struct acceptor<MyServer> acceptor;
+    static struct acceptor acceptor;
 };
 
-struct acceptor<MyServer> MyServer::acceptor;
+/* static */ /* __thread vmpool_op<server_epoll_event> MyServer::pool; */
+
+struct acceptor MyServer::acceptor;
 
 int init_signals();
 
@@ -166,7 +180,6 @@ static void usage(char *arg0)
     printf("\n");
     exit(EXIT_FAILURE);
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -224,13 +237,13 @@ int main(int argc, char *argv[])
     if (daemon_mode)
         daemon::start(NULL, pidfile, logfile);
 
-    epoll::set_per_thread_callback(MyServer::init);
+    epoll::set_per_thread_callback(MyServer::init_per_thread);
     mime_types::instance()->load();
     if (0 > epoll::init(timeout, timeout * 1000))
         abort();
     http_client_file::init();
     events_array.init(class_factory<MyServer>::create);
-    if (0 > MyServer::acceptor.init(port, LISTEN_BACKLOG, &events_array))
+    if (0 > MyServer::acceptor.init(-1, port, LISTEN_BACKLOG, &events_array))
         abort();
     MyServer::acceptor.callback.set(&MyServer::handle_request);
     epoll::start();

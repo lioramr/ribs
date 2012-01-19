@@ -45,7 +45,7 @@ SSTREXTRN(HTTP_LOCATION);
 SSTREXTRN(CONTENT_ENCODING);
 SSTREXTRN(CONTENT_ENCODING_GZIP);
 
-struct http_server : basic_epoll_event
+struct http_server : server_epoll_event
 {
     http_server();
 
@@ -92,10 +92,12 @@ struct http_server : basic_epoll_event
 
     void suspend_events();
     void resume_events();
+
+    static void init(struct http_server *s)
+    {
+        s->method.set(&http_server::onInit);
+    }
     
-    vmbuf inbuf;
-    vmbuf header;
-    vmbuf payload;
     char *URI;
     char *query;
     char *content;
@@ -105,7 +107,6 @@ struct http_server : basic_epoll_event
     http_server *next;
     bool persistent;
 
-    struct basic_epoll_event_method_0args callback;
     static uint32_t max_req_size;
 };
 
@@ -123,6 +124,7 @@ inline void http_server::reset()
 inline struct basic_epoll_event *http_server::close()
 {
     method.set(&http_server::onInit);
+    //pool->put(this);
     ::close(fd);
     return NULL;
 }

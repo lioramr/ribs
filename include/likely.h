@@ -17,12 +17,10 @@
     You should have received a copy of the GNU Lesser General Public License
     along with RIBS.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef _CLIENT_COMMON__H_
-#define _CLIENT_COMMON__H_
+#ifndef _LIKELY__H_
+#define _LIKELY__H_
 
-#include <stdint.h>
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
 
-int resolve_host_name(const char*host, struct in_addr *addr);
-int parse_ip_and_port(const char *host, struct in_addr *addr, uint16_t *port);
-
-#endif // _CLIENT_COMMON__H_
+#endif // _LIKELY__H_

@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 #include "vmbuf.h"
 #include "sstr.h"
 #include "http_common.h"
@@ -34,32 +35,62 @@
 #include <getopt.h>
 #include "logger.h"
 #include "daemon.h"
+#include "vmpool.h"
 
 #define LISTEN_BACKLOG 32768
 
-static struct epoll_event_array events_array;
+static struct epoll_server_event_array events_array;
 
 struct MyServer : http_server
 {
-    static int init()
+    //static __thread vmpool_op<server_epoll_event> pool;
+    static int init_per_thread()
     {
+        /*
+        static __thread vmpool<MyServer> *myserver_pool = NULL;
+        myserver_pool = new vmpool<MyServer>;
+        pool = myserver_pool->get_op<server_epoll_event>();
+        acceptor.init_per_thread(pool);
+        */
         acceptor.init_per_thread();
         return 0;
+    }
+
+    void handle_accept()
+    {
+        //printf("accept: %d\n", fd);
     }
     
     struct basic_epoll_event *handle_request()
     {
+        /*
+        sockaddr_in addr;
+        socklen_t len = sizeof(addr);
+        char addr_str[INET_ADDRSTRLEN];
+        const char *addrp = "-";
+        if (0 == getpeername(fd, (struct sockaddr*)&addr, &len) &&
+            NULL != inet_ntop(AF_INET, &addr.sin_addr, addr_str, INET_ADDRSTRLEN))
+        {
+            addrp = addr_str;
+        }
+        LOGGER_INFO("%s %s%s%s", addrp, URI, *query ? "?" : "", query);
+        */
         URI::decode(URI);
         const char *file = (URI[1] == 0 ? "." : URI + 1);
         int ffd = open(file, O_RDONLY);
         if (0 > ffd)
             return response(HTTP_STATUS_404, HTTP_CONTENT_TYPE_TEXT_PLAIN);
 
+        /*
+        http_server *h = (http_server *)pool.get();
+        h->fd = ffd;
+        */
         http_server *h = (http_server *)events_array.get(ffd);
         if (0 > h->sendFile(this))
         {
             struct stat st;
             int res = fstat(ffd, &st);
+            //pool.put(h);
             ::close(ffd);
             if (res == 0 && S_ISDIR(st.st_mode) && 0 == generateDirList(file))
             {
@@ -116,10 +147,11 @@ struct MyServer : http_server
         return error;
     }
     
-    static struct acceptor<MyServer> acceptor;
+    static struct acceptor acceptor;
 };
+//__thread vmpool_op<server_epoll_event> MyServer::pool;
 
-struct acceptor<MyServer> MyServer::acceptor;
+struct acceptor MyServer::acceptor;
 
 int init_signals();
 
@@ -134,7 +166,6 @@ static void usage(char *arg0)
     printf("\n");
     exit(EXIT_FAILURE);
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -189,15 +220,17 @@ int main(int argc, char *argv[])
     if (daemon_mode)
         daemon::start(NULL, pidfile, logfile);
 
-    epoll::set_per_thread_callback(MyServer::init);
+    epoll::set_per_thread_callback(MyServer::init_per_thread);
     mime_types::instance()->load();
     if (0 > epoll::init(timeout, timeout))
         abort();
     
     events_array.init(class_factory<MyServer>::create);
-    if (0 > MyServer::acceptor.init(port, LISTEN_BACKLOG, &events_array))
+    if (0 > MyServer::acceptor.init(-1, port, LISTEN_BACKLOG, &events_array))
         abort();
     MyServer::acceptor.callback.set(&MyServer::handle_request);
+    MyServer::acceptor.accept_callback.set(&MyServer::handle_accept);
+    
     epoll::start();
     daemon::finish();
     return 0;

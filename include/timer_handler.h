@@ -21,6 +21,8 @@
 #define _TIMER_HANDLER__H_
 
 #include <sys/timerfd.h>
+#include "basic_epoll_event.h"
+#include "epoll.h"
 
 struct timer_handler : basic_epoll_event
 {

@@ -22,8 +22,28 @@
 
 #include <sys/epoll.h>
 #include <unistd.h>
+#include "vmbuf.h"
+#include "vmpool.h"
 
 struct basic_epoll_event;
+
+struct basic_epoll_event_void_method_0args
+{
+    typedef void (basic_epoll_event::* method_t)();
+
+    template<typename T>
+    void set(void (T::* m)())
+    {
+        method = (method_t)m;
+    }
+
+    void invoke(struct basic_epoll_event *e)
+    {
+        return (e->*method)();
+    }
+
+    method_t method;
+};
 
 struct basic_epoll_event_method_0args
 {
@@ -100,5 +120,16 @@ struct basic_epoll_event
     struct timeval last_event_ts;
     int fd;
 };
+
+struct server_epoll_event : basic_epoll_event
+{
+    vmbuf inbuf;
+    vmbuf header;
+    vmbuf payload;
+    // vmpool_op<server_epoll_event> *pool;
+
+    struct basic_epoll_event_method_0args callback;
+};
+
 
 #endif // _BASIC_EPOLL_EVENT__H_

@@ -33,22 +33,22 @@ template<typename S>
 struct vmbuf_common
 {
     S storage;
-    
+
     vmbuf_common() : storage(), read_loc(0), write_loc(0) { unsigned int *cnt = allocated(); __sync_add_and_fetch(cnt, 1); }
     ~vmbuf_common() { free(); unsigned int *cnt = allocated(); __sync_sub_and_fetch(cnt, 1); }
 
     void detach() { storage.detach(); }
-    
+
     void reset();
     int free();
     int free_most();
-    
+
     int resize_by(size_t by);
     int resize_to(size_t new_capacity);
     int resize_if_full();
     int resize_if_less(size_t desired_size);
     int resize_no_check(size_t n);
-    
+
     size_t alloc(size_t n);
     size_t alloczero(size_t n);
 
@@ -60,7 +60,7 @@ struct vmbuf_common
 
     template<typename T>
     size_t num_elements();
-    
+
     char *data() const { return storage.buf; }
     char *data(size_t loc) const { return storage.buf + loc; }
 
@@ -72,15 +72,22 @@ struct vmbuf_common
 
     size_t rlocpos() { return read_loc; }
     size_t wlocpos() { return write_loc; }
-    void rollback(size_t ofs) { write_loc = ofs; }
+
+    void rlocset(size_t ofs) { read_loc = ofs; }
+    void wlocset(size_t ofs) { write_loc = ofs; }
+
+    void rrewind(size_t by) { read_loc -= by; }
+    void wrewind(size_t by) { write_loc -= by; }
 
     size_t capacity() { return storage.capacity; }
 
     void unsafe_wseek(size_t by) { write_loc += by; }
     int wseek(size_t by) { unsafe_wseek(by); return resize_if_full(); }
     void rseek(size_t by) { read_loc += by; }
-    void rewind() { read_loc = 0; }
-    
+
+    void rreset() { read_loc = 0; }
+    void wreset() { write_loc = 0; }
+
     vmbuf_common &sprintf(const char *format, ...);
     vmbuf_common &vsprintf(const char *format, va_list ap);
     vmbuf_common &strcpy(const char *src);
@@ -105,7 +112,7 @@ struct vmbuf_common
 
 struct vmbuf : vmbuf_common<vmstorage_mem>
 {
-    int init(size_t initial_size = vmpage::PAGESIZE)
+    int init(size_t initial_size = vmpage::PAGESIZE << 6)
     {
         if (0 > storage.init(initial_size))
             return -1;
@@ -116,6 +123,14 @@ struct vmbuf : vmbuf_common<vmstorage_mem>
 
 struct vmfile : vmbuf_common<vmstorage_file>
 {
+    int init(const char *filename, size_t initial_size = vmpage::PAGESIZE)
+    {
+        reset();
+        if (0 > storage.init(filename, initial_size, &write_loc))
+            return -1;
+        return 0;
+    }
+
     int create(const char *filename, size_t initial_size = vmpage::PAGESIZE)
     {
         if (0 > storage.create(filename, initial_size))
@@ -140,15 +155,13 @@ struct vmfile : vmbuf_common<vmstorage_file>
         return 0;
     }
 
-    int load(const char *filename, int mmap_flags, int vmstorage_flags)
+    int load(const char *filename)
     {
-        if (0 > storage.load(filename, mmap_flags))
+        if (0 > storage.load(filename, &write_loc))
             return -1;
-        
+
         read_loc = 0;
-        write_loc = storage.capacity;
-        if (vmstorage_flags & VMSTORAGE_RO)
-        	storage.close(); // can close the file after mmap
+       	storage.close(); // can close the file after mmap
         return 0;
     }
 

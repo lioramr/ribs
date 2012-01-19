@@ -17,12 +17,14 @@
     You should have received a copy of the GNU Lesser General Public License
     along with RIBS.  If not, see <http://www.gnu.org/licenses/>.
 */
-//#include "acceptor.h"
+#include "acceptor.h"
 #include "logger.h"
 
-template<typename T>
-inline int acceptor<T>::_init(int fd, int port, int listen_backlog)
-{    
+/* static */ __thread struct vmpool_op<struct server_epoll_event> acceptor::pool;
+
+int acceptor::init(int fd, int port, int listen_backlog, struct epoll_server_event_array *events)
+{
+    this->events = events;
     this->method.set(&acceptor::on_accept);
     // create listener
     if (0 > fd) {
@@ -84,11 +86,12 @@ inline int acceptor<T>::_init(int fd, int port, int listen_backlog)
         this->fd = fd;
         LOGGER_INFO_AT("listening on inherited fd: %d", fd);
     }
+    callback.set(&acceptor::callback_error);
+    accept_callback.set(&acceptor::noop);
     return 0;
 }
 
-template<typename T>
-struct basic_epoll_event *acceptor<T>::on_accept()
+struct basic_epoll_event *acceptor::on_accept()
 {
     struct sockaddr_in new_addr;
     socklen_t new_addr_size = sizeof(struct sockaddr_in);
@@ -96,8 +99,33 @@ struct basic_epoll_event *acceptor<T>::on_accept()
     if (0 > acceptfd)
         return NULL;
     
-    struct basic_epoll_event *event = events->get(acceptfd);
+    /*
+    struct server_epoll_event *event = pool.get();
+    event->fd = acceptfd;
+    */
+    struct server_epoll_event *event = events->get(acceptfd);
+    
     epoll::add(event, EPOLLET | EPOLLIN | EPOLLOUT);
-    ((T *)event)->callback = callback;
+    event->callback = callback;
+    //event->pool = &pool;
+    this->accept_callback.invoke(event);
     return event; 
 }
+
+void acceptor::init_per_thread()
+{
+    epoll::add_multi(this, EPOLLIN);
+}
+
+/*
+void acceptor::init_per_thread(vmpool_op<struct server_epoll_event> p)
+{
+    pool = p;
+    epoll::add_multi(this, EPOLLIN);
+    struct rlimit rlim;
+    if (0 > ::getrlimit(RLIMIT_NOFILE, &rlim))
+        abort();
+    if (0 > pool.init(rlim.rlim_cur))
+        abort();
+}
+*/

@@ -53,7 +53,7 @@ struct ds_field : ds_field_base
         return 0;
     }
     int close() { return mmf.close(); }
-    
+
     size_t num_records() { return end() - begin(); }
 
     int get_val_safe(size_t index, T &out_val)

@@ -94,7 +94,7 @@ struct vmstorage_mem
         }
         return 0;
     }
-    
+
     int resize_to(size_t new_capacity)
     {
         new_capacity = vmpage::align(new_capacity);
@@ -109,7 +109,7 @@ struct vmstorage_mem
         capacity = new_capacity;
         return 0;
     }
-    
+
     char *buf;
     size_t capacity;
 };
@@ -119,7 +119,22 @@ struct vmstorage_file
 {
     vmstorage_file() : buf(NULL), capacity(0), fd(-1) {}
     void detach() { buf = NULL; capacity = 0; fd = -1; }
-    
+
+    int init(const char *filename, size_t initial_size, size_t *loc)
+    {
+        fd = open(filename, O_CREAT | O_RDWR | O_CLOEXEC, 0644);
+        if (0 > fd)
+            return perror(filename), -1;
+
+        struct stat st;
+        if (0 > fstat(fd, &st))
+            return perror(filename), -1;
+
+        *loc = st.st_size;
+
+        return create(fd, initial_size);
+    }
+
     int create(int fd, size_t initial_size)
     {
         this->fd = fd;
@@ -147,14 +162,14 @@ struct vmstorage_file
             return -1;
         return create(tfd, initial_size);
     }
-    
+
     int create(const char *filename, size_t initial_size)
     {
         if (NULL == buf)
         {
             if (0 > unlink(filename) && errno != ENOENT)
                 return perror(filename), -1;
-            
+
             fd = open(filename, O_CREAT | O_RDWR | O_CLOEXEC, 0644);
             if (0 > fd)
                 return perror(filename), -1;
@@ -167,12 +182,12 @@ struct vmstorage_file
         return 0;
     }
 
-    int load(const char *filename, int mmap_flags)
+    int load(const char *filename, size_t *loc)
     {
         if (0 > this->free())
             return -1;
-        
-        fd = open(filename, O_RDWR | O_CLOEXEC);
+
+        fd = open(filename, O_RDONLY | O_CLOEXEC);
         if (0 > fd)
         {
             perror(filename);
@@ -187,17 +202,20 @@ struct vmstorage_file
             return -1;
         }
         len = st.st_size;
-
+        *loc = len;
         len = vmpage::align(len);
-        
-        buf = (char *)mmap(NULL, len, PROT_WRITE | PROT_READ, mmap_flags, fd, 0);
+
+       	buf = (char *)mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+
         if (MAP_FAILED == buf)
         {
             perror("mmap, vmstorage_file::load");
             buf = NULL;
             return -1;
         }
-        capacity = len;
+
+       	capacity = len;
+
         return 0;
     }
 
@@ -210,7 +228,7 @@ struct vmstorage_file
             fd = -1;
         }
     }
-    
+
     int free()
     {
         this->close();
@@ -242,7 +260,7 @@ struct vmstorage_file
         }
         return 0;
     }
-    
+
     int resize_to(size_t new_capacity)
     {
         new_capacity = vmpage::align(new_capacity);
@@ -272,7 +290,7 @@ struct vmstorage_file
         }
         return 0;
     }
-    
+
     char *buf;
     size_t capacity;
     int fd;

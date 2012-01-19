@@ -57,6 +57,10 @@ template<typename T>
 inline /* static */ bool search::binary(const T *data, uint32_t n, const T &v, const T **res)
 {
     uint32_t loc = search::lower_bound(data, n, v);
+    
+    if (loc >= n)
+        return *res = NULL, false;
+    
     const T *ptr = data + loc;
     if (*ptr < v || v < *ptr)
         return *res = NULL, false;
